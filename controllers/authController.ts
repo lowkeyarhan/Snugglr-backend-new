@@ -1,4 +1,4 @@
-import UserModel from "../models/User";
+import UserModel from "../models/profile/User";
 import AllowedCollegeModel from "../models/admin/AllowedCollege";
 import bcrypt from "bcrypt";
 import { generateToken } from "../configs/jwt";

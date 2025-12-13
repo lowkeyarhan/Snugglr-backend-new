@@ -10,6 +10,9 @@ import connectDB from "./configs/mongoDb";
 import confessionRoute from "./routes/confessionRoute";
 import swaggerUi from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
+import userRoute from "./routes/userRoute";
+import roomRoute from "./routes/roomRoute";
+import messageRoute from "./routes/messageRoute";
 
 const swaggerOptions: swaggerJSDoc.Options = {
   definition: {
@@ -84,6 +87,9 @@ app.get("/", async (req, res) => {
 // routes
 app.use("/api/auth", authRoute);
 app.use("/api/confession", confessionRoute);
+app.use("/api/profile", userRoute);
+app.use("/api/room", roomRoute);
+app.use("/api/message", messageRoute);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
