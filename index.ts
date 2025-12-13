@@ -44,16 +44,20 @@ const swaggerOptions: swaggerJSDoc.Options = {
 };
 
 export const swaggerSpec = swaggerJSDoc(swaggerOptions);
+console.log(
+  `Swagger documentation: http://localhost:${process.env.PORT || 3000}/api-docs`
+);
 
 // connect to MongoDB
 connectDB();
 
-// express configurations
+// configurations
 const app = express();
 const port = process.env.PORT || 3000;
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// CORS configuration
+// CORS middleware
 app.use(
   cors({
     origin: clientUrl,
@@ -66,9 +70,6 @@ app.use(
 // body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Swagger documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // test route
 app.get("/", async (req, res) => {
