@@ -50,6 +50,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    institution: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AllowedCollege",
+      required: true,
+    },
     birthday: {
       type: Date,
     },

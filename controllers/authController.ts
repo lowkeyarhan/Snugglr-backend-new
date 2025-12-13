@@ -1,5 +1,5 @@
-import UserModel from "../models/UserModel";
-import AllowedCollegeModel from "../models/AllowedCollege";
+import UserModel from "../models/User";
+import AllowedCollegeModel from "../models/admin/AllowedCollege";
 import bcrypt from "bcrypt";
 import { generateToken } from "../configs/jwt";
 import { generateUniqueAnonymousUsername } from "../utils/usernameGenerator";
@@ -60,11 +60,16 @@ export const registerUser = async (req, res) => {
       gender,
       birthday,
       pronouns,
-      collegeName,
+      collegeName: allowedCollege.institutionName,
+      institution: allowedCollege._id,
     });
 
     // generate token
-    const token = generateToken({ userId: newUser._id, role: "user" });
+    const token = generateToken({
+      userId: newUser._id,
+      role: "user",
+      institution: allowedCollege._id,
+    });
 
     // return user and token
     return res.status(201).json({
@@ -75,7 +80,8 @@ export const registerUser = async (req, res) => {
         name: newUser.name,
         username: newUser.username,
         email: normalizedEmail,
-        collegeName,
+        collegeName: allowedCollege.institutionName,
+        institution: allowedCollege._id,
         role: "user",
       },
       token,
@@ -141,6 +147,7 @@ export const loginUser = async (req, res) => {
     const token = generateToken({
       userId: user._id,
       role: user.role,
+      institution: user.institution,
     });
 
     return res.status(200).json({
@@ -155,6 +162,7 @@ export const loginUser = async (req, res) => {
           phoneNumber: user.phoneNumber,
           gender: user.gender,
           collegeName: user.collegeName,
+          institution: user.institution,
           role: user.role,
         },
         token,

@@ -7,6 +7,43 @@ import express from "express";
 import cors from "cors";
 import authRoute from "./routes/authRoute";
 import connectDB from "./configs/mongoDb";
+import confessionRoute from "./routes/confessionRoute";
+import swaggerUi from "swagger-ui-express";
+import swaggerJSDoc from "swagger-jsdoc";
+
+const swaggerOptions: swaggerJSDoc.Options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Snugglr API",
+      version: "1.0.0",
+      description: "Backend API documentation for Snugglr",
+    },
+    servers: [
+      {
+        url: "http://localhost:8080/api",
+        description: "Local server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        BearerAuth: [],
+      },
+    ],
+  },
+  apis: ["./routes/*.ts"],
+};
+
+export const swaggerSpec = swaggerJSDoc(swaggerOptions);
 
 // connect to MongoDB
 connectDB();
@@ -30,17 +67,22 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Swagger documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // test route
 app.get("/", async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Snugglr API is running!",
     version: "1.0.0",
+    documentation: `http://localhost:${port}/api-docs`,
   });
 });
 
 // routes
 app.use("/api/auth", authRoute);
+app.use("/api/confession", confessionRoute);
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
