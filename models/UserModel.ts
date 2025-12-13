@@ -13,16 +13,13 @@ const UserSchema = new mongoose.Schema(
     username: {
       type: String,
       required: [true, "Username is required"],
-      unique: true,
       trim: true,
-      lowercase: true,
       minlength: [6, "Username must be at least 6 characters"],
       maxlength: [30, "Username must be less than 30 characters"],
     },
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
       lowercase: true,
@@ -41,7 +38,15 @@ const UserSchema = new mongoose.Schema(
       select: false,
     },
     // user profile fields
+    profilePicture: {
+      type: String,
+      trim: true,
+    },
     phoneNumber: {
+      type: String,
+      trim: true,
+    },
+    collegeName: {
       type: String,
       trim: true,
     },
@@ -50,7 +55,7 @@ const UserSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["male", "female"],
+      enum: ["male", "female", "non-binary", "other", "prefer-not-to-say"],
     },
     pronouns: {
       type: String,
@@ -106,6 +111,25 @@ const UserSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// indexes for faster queries
+UserSchema.index({ email: 1 });
+UserSchema.index({ username: 1 }, { collation: { locale: "en", strength: 2 } });
+
+// dynamic age calculation from birthday
+UserSchema.virtual("age").get(function () {
+  if (!this.birthday) return null;
+  const today = new Date();
+  let age = today.getFullYear() - this.birthday.getFullYear();
+  const monthDiff = today.getMonth() - this.birthday.getMonth();
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < this.birthday.getDate())
+  ) {
+    age--;
+  }
+  return age;
+});
 
 const UserModel = mongoose.model("User", UserSchema);
 
