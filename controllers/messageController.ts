@@ -1,22 +1,19 @@
+import { Request, Response } from "express";
 import Message from "../models/chats/Message";
-import Chat from "../models/chats/ChatRoom";
-import User from "../models/profile/User";
+import ChatRoom from "../models/chats/ChatRoom";
 
 // get messages for a chatroom
-export const getMessages = async (req, res) => {
+export const getMessages = async (req: Request, res: Response) => {
   try {
     const { chatId } = req.params;
     const currentUserId = req.user._id;
 
-    // pagination parameters (from query)
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-
-    // calculate skip value for pagination
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
 
-    // check if chatroom exists
-    const chat = await Chat.findById(chatId);
+    // check if the chat room exists
+    const chat = await ChatRoom.findById(chatId);
     if (!chat) {
       return res.status(404).json({
         success: false,
@@ -24,11 +21,12 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    // check if user is a participant
+    // check if the user is a participant
     const isParticipant = chat.users.some(
       (id) => id.toString() === currentUserId.toString()
     );
 
+    // if the user is not a participant, return an error
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -36,16 +34,24 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    // fetch paginated messages
-    const messages = await Message.find({ chatId })
-      .populate("sender", "name username image")
-      .sort({ createdAt: -1 }) // latest first
+    // get the messages
+    let query = Message.find({ chatId })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    // total message count (for frontend pagination)
+    // if the chat room is not anonymous, populate the sender
+    if (!chat.anonymous) {
+      query = query.populate("sender", "name username image");
+    }
+
+    // get the messages
+    const messages = await query;
+
+    // get the total number of messages
     const totalMessages = await Message.countDocuments({ chatId });
 
+    // return the messages
     return res.status(200).json({
       success: true,
       data: {
@@ -56,11 +62,12 @@ export const getMessages = async (req, res) => {
           totalMessages,
           totalPages: Math.ceil(totalMessages / limit),
         },
-        revealed: chat.revealed,
+        chatStatus: chat.status,
+        anonymous: chat.anonymous,
       },
     });
-  } catch (error) {
-    console.error("Get Messages Error:", error.message);
+  } catch (error: any) {
+    // return an error
     return res.status(500).json({
       success: false,
       message: "Error fetching messages",
@@ -69,13 +76,12 @@ export const getMessages = async (req, res) => {
 };
 
 // send a new message
-export const sendMessage = async (req, res) => {
+export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { chatId } = req.params;
     const { text } = req.body;
     const currentUserId = req.user._id;
 
-    // validate message
     if (!text || text.trim() === "") {
       return res.status(400).json({
         success: false,
@@ -83,8 +89,8 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // check if chatroom exists
-    const chat = await Chat.findById(chatId);
+    // check if the chat room exists
+    const chat = await ChatRoom.findById(chatId);
     if (!chat) {
       return res.status(404).json({
         success: false,
@@ -92,11 +98,12 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // check if user is participant
+    // check if the user is a participant
     const isParticipant = chat.users.some(
       (id) => id.toString() === currentUserId.toString()
     );
 
+    // if the user is not a participant, return an error
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -104,23 +111,34 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // create message
+    // check if the chat room is active
+    if (chat.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Chat is locked or expired",
+      });
+    }
+
+    // create a new message
     const message = await Message.create({
       chatId,
       sender: currentUserId,
       text: text.trim(),
     });
 
-    // populate sender for frontend
-    await message.populate("sender", "name username image");
+    // if the chat room is not anonymous, populate the sender
+    if (!chat.anonymous) {
+      await message.populate("sender", "name username image");
+    }
 
+    // return the message
     return res.status(201).json({
       success: true,
       message: "Message sent successfully",
       data: { message },
     });
-  } catch (error) {
-    console.error("Send Message Error:", error.message);
+  } catch (error: any) {
+    // return an error
     return res.status(500).json({
       success: false,
       message: "Error sending message",

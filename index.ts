@@ -13,6 +13,8 @@ import swaggerJSDoc from "swagger-jsdoc";
 import userRoute from "./routes/userRoute";
 import roomRoute from "./routes/roomRoute";
 import messageRoute from "./routes/messageRoute";
+import chatRoute from "./routes/chatroomRoute";
+import matchRoute from "./routes/matchRoute";
 
 const swaggerOptions: swaggerJSDoc.Options = {
   definition: {
@@ -74,23 +76,16 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// test route
-app.get("/", async (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Snugglr API is running!",
-    version: "1.0.0",
-    documentation: `http://localhost:${port}/api-docs`,
-  });
-});
-
 // routes
 app.use("/api/auth", authRoute);
 app.use("/api/confession", confessionRoute);
 app.use("/api/profile", userRoute);
 app.use("/api/room", roomRoute);
 app.use("/api/message", messageRoute);
+app.use("/api/chat", chatRoute);
+app.use("/api/match", matchRoute);
 
+// start the server
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

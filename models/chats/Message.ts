@@ -2,51 +2,56 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    // Which chatroom this message belongs to
     chatId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Chat", // uses the SAME name as your ChatRoom model
+      ref: "ChatRoom",
       required: true,
+      index: true,
     },
 
-    // Who sent the message
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
+      index: true,
     },
 
-    // Message content (only for normal messages)
     text: {
       type: String,
       trim: true,
+      maxlength: 2000,
+      default: null,
     },
 
-    // Type of message
-    // "text"   -> normal user message
-    // "system" -> join/leave/reveal messages
     type: {
       type: String,
       enum: ["text", "system"],
       default: "text",
+      index: true,
     },
 
-    // List of users who have read this message
-    readBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    // soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  {
-    timestamps: true, // createdAt & updatedAt
-  }
+  { timestamps: true }
 );
 
-// Index for fast message loading per chat (latest first)
+// enforce message rules
+messageSchema.pre("save", function () {
+  if (this.type === "text" && !this.text) {
+    throw new Error("Text message cannot be empty");
+  }
+
+  if (this.type === "system") {
+    this.sender = null;
+  }
+});
+
+// fast chat pagination
 messageSchema.index({ chatId: 1, createdAt: -1 });
 
 const Message = mongoose.model("Message", messageSchema);
-
 export default Message;
