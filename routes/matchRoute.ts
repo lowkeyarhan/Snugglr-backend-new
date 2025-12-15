@@ -1,9 +1,6 @@
 import { Router } from "express";
 import { tryMatch } from "../controllers/matchController";
-import {
-  joinMatchPool,
-  leaveMatchPool,
-} from "../controllers/matchpoolController";
+import { joinMatchPool } from "../controllers/matchpoolController";
 import { submitOpeningMove } from "../controllers/openingmoveController";
 import authMiddleware from "../middleware/authMiddleware";
 
@@ -102,32 +99,6 @@ router.post("/try", authMiddleware, tryMatch);
  *         description: Internal server error
  */
 router.post("/pool/join", authMiddleware, joinMatchPool);
-
-/**
- * @swagger
- * /match/pool/leave:
- *   delete:
- *     summary: Leave the match pool
- *     tags: [Matches]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Successfully left match pool
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Left match pool
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.delete("/pool/leave", authMiddleware, leaveMatchPool);
 
 /**
  * @swagger

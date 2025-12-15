@@ -15,6 +15,7 @@ import roomRoute from "./routes/roomRoute";
 import messageRoute from "./routes/messageRoute";
 import chatRoute from "./routes/chatroomRoute";
 import matchRoute from "./routes/matchRoute";
+import adminRoute from "./routes/adminRoute";
 
 const swaggerOptions: swaggerJSDoc.Options = {
   definition: {
@@ -84,6 +85,7 @@ app.use("/api/room", roomRoute);
 app.use("/api/message", messageRoute);
 app.use("/api/chat", chatRoute);
 app.use("/api/match", matchRoute);
+app.use("/api/admin", adminRoute);
 
 // start the server
 app.listen(port, () => {
