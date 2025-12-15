@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
+import Notification from "../models/preferences/Notification";
 import MatchPool from "../models/matches/MatchPool";
+import { Request, Response } from "express";
 
 // user joins/creates a match pool
 export const joinMatchPool = async (req: Request, res: Response) => {
@@ -10,10 +11,12 @@ export const joinMatchPool = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Mood is required" });
   }
 
-  // set expires at
-  const expiresAt = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000); // 1 day
+  // set expires at to 24 hours from now
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  // update or create match pool
+  // join / update match pool
+  // if the user is already in the pool, update the pool
+  // if the user is not in the pool, create a new pool
   await MatchPool.findOneAndUpdate(
     { user: req.user._id },
     {
@@ -26,11 +29,33 @@ export const joinMatchPool = async (req: Request, res: Response) => {
     { upsert: true, new: true }
   );
 
-  return res.status(200).json({ message: "Joined match pool" });
-};
+  // find someone else in same match pool
+  const candidate = await MatchPool.findOne({
+    institution: req.user.institution,
+    mood,
+    user: { $ne: req.user._id },
+  }).lean();
 
-// user leaves the match pool
-export const leaveMatchPool = async (req: Request, res: Response) => {
-  await MatchPool.deleteOne({ user: req.user._id });
-  return res.status(200).json({ message: "Left match pool" });
+  if (candidate) {
+    // prevent spam: check recent system notifications
+    const alreadyNotified = await Notification.findOne({
+      user: candidate.user,
+      type: "system",
+      createdAt: { $gte: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+    });
+
+    if (!alreadyNotified) {
+      // create a new system notification
+      await Notification.create({
+        user: candidate.user,
+        type: "system",
+        title: "Someone from your college 👀",
+        body: "Someone from your college is in the same mood 👀 Want to make the first move?",
+        actionUrl: "/mood-match",
+        relatedUser: req.user._id,
+      });
+    }
+  }
+
+  return res.status(200).json({ message: "Joined match pool" });
 };

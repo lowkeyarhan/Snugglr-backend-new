@@ -41,7 +41,6 @@ const notificationSchema = new mongoose.Schema(
     },
 
     // redirection (deep linking)
-    // Example: /chat/123 or /confession/456
     actionUrl: {
       type: String,
       trim: true,

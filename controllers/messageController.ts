@@ -82,6 +82,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     const { text } = req.body;
     const currentUserId = req.user._id;
 
+    // check if the text is provided
     if (!text || text.trim() === "") {
       return res.status(400).json({
         success: false,

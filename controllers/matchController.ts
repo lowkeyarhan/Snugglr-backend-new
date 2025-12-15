@@ -3,6 +3,7 @@ import MatchPool from "../models/matches/MatchPool";
 import Match from "../models/matches/Match";
 import ChatRoom from "../models/chats/ChatRoom";
 import OpeningMoveSession from "../models/matches/OpeningMove";
+import Notification from "../models/preferences/Notification";
 
 // try to match a user with another user in the pool
 export const tryMatch = async (req: Request, res: Response) => {
@@ -61,6 +62,26 @@ export const tryMatch = async (req: Request, res: Response) => {
   // set the opening move session for the chat room
   chat.openingMoveSession = openingMove._id;
   await chat.save();
+
+  // notify both users about the match
+  await Notification.insertMany([
+    {
+      user: me.user,
+      type: "match",
+      title: "It’s a match 👀",
+      body: "You matched with someone from your college",
+      actionUrl: `/chat/${chat._id}`,
+      relatedUser: other.user,
+    },
+    {
+      user: other.user,
+      type: "match",
+      title: "It’s a match 👀",
+      body: "You matched with someone from your college",
+      actionUrl: `/chat/${chat._id}`,
+      relatedUser: me.user,
+    },
+  ]);
 
   // return the chat room id
   return res.status(200).json({ matched: true, chatId: chat._id.toString() });

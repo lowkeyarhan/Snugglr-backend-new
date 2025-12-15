@@ -1,6 +1,7 @@
 import Confession from "../models/confessions/Confession";
 import Comment from "../models/confessions/Comment";
 import Like from "../models/confessions/Like";
+import Notification from "../models/preferences/Notification";
 
 // create a new confession
 export const createConfession = async (req, res) => {
@@ -11,17 +12,19 @@ export const createConfession = async (req, res) => {
       return res.status(400).json({ message: "Confession text required" });
     }
 
+    // create a new confession
     const confession = await Confession.create({
       user: req.user._id,
       institution: req.user.institution,
       confession: text.trim(),
     });
 
+    // return the created confession
     res.status(201).json({
       success: true,
       data: confession,
     });
-  } catch {
+  } catch (error) {
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -34,6 +37,7 @@ export const getConfessions = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
 
+    // get all confessions for the user's institution
     const confessions = await Confession.find({
       institution: req.user.institution,
     })
@@ -43,10 +47,12 @@ export const getConfessions = async (req, res) => {
       .skip((page - 1) * limit)
       .lean();
 
+    // get the total number of confessions for the user's institution
     const total = await Confession.countDocuments({
       institution: req.user.institution,
     });
 
+    // return the confessions
     res.status(200).json({
       success: true,
       data: {
@@ -64,31 +70,31 @@ export const getConfessions = async (req, res) => {
   }
 };
 
-// like a confession
+// like a confession (notifications)
 export const likeConfession = async (req, res) => {
   try {
     const { confessionId } = req.params;
     const userId = req.user._id;
 
-    // check if confession exists
+    // check if the confession exists
     const confession = await Confession.findOne({
       _id: confessionId,
       institution: req.user.institution,
     });
 
-    // if confession does not exist, return 404
+    // if the confession does not exist, return an error
     if (!confession) {
       return res.status(404).json({ message: "Confession not found" });
     }
 
-    // check if user has already liked the confession
+    // check if the user has already liked the confession
     const existingLike = await Like.findOne({
       user: userId,
       targetId: confessionId,
       targetType: "confession",
     });
 
-    // if user has already liked the confession, unlike it
+    // if the user has already liked the confession, remove the like
     if (existingLike) {
       await Like.deleteOne({ _id: existingLike._id });
       await Confession.findByIdAndUpdate(confessionId, {
@@ -98,7 +104,7 @@ export const likeConfession = async (req, res) => {
       return res.status(200).json({ success: true, liked: false });
     }
 
-    // like the confession
+    // create a new like
     await Like.create({
       user: userId,
       targetId: confessionId,
@@ -110,8 +116,22 @@ export const likeConfession = async (req, res) => {
       $inc: { likesCount: 1 },
     });
 
+    // notify confession owner (no self-notify)
+    if (confession.user.toString() !== userId.toString()) {
+      await Notification.create({
+        user: confession.user,
+        type: "like",
+        title: "Your post is getting attention",
+        body: "Someone liked your confession",
+        actionUrl: `/confession/${confessionId}`,
+        relatedUser: userId,
+        relatedPost: confessionId,
+      });
+    }
+
+    // return the success response
     return res.status(200).json({ success: true, liked: true });
-  } catch {
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Error liking confession",
@@ -119,7 +139,7 @@ export const likeConfession = async (req, res) => {
   }
 };
 
-// comment on a confession
+// comment on a confession (notifications)
 export const commentOnConfession = async (req, res) => {
   try {
     const { confessionId } = req.params;
@@ -129,13 +149,13 @@ export const commentOnConfession = async (req, res) => {
       return res.status(400).json({ message: "Comment text required" });
     }
 
-    // check if confession exists
+    // check if the confession exists
     const confession = await Confession.findOne({
       _id: confessionId,
       institution: req.user.institution,
     });
 
-    // if confession does not exist, return 404
+    // if the confession does not exist, return an error
     if (!confession) {
       return res.status(404).json({ message: "Confession not found" });
     }
@@ -148,11 +168,25 @@ export const commentOnConfession = async (req, res) => {
       parentComment: null,
     });
 
+    // notify confession owner
+    if (confession.user.toString() !== req.user._id.toString()) {
+      await Notification.create({
+        user: confession.user,
+        type: "comment",
+        title: "New reply",
+        body: "Someone replied to your confession",
+        actionUrl: `/confession/${confessionId}`,
+        relatedUser: req.user._id,
+        relatedPost: confessionId,
+      });
+    }
+
+    // return the created comment
     return res.status(201).json({
       success: true,
       data: comment,
     });
-  } catch {
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Error adding comment",
@@ -160,34 +194,35 @@ export const commentOnConfession = async (req, res) => {
   }
 };
 
-// reply to a comment on a confession (nested comments, parent comment is required)
+// reply to a comment on a confession (notifications)
 export const replyToComment = async (req, res) => {
   try {
     const { confessionId, commentId } = req.params;
     const { text } = req.body;
 
-    // check if reply text is provided
+    // check if the reply text is provided
     if (!text?.trim()) {
       return res.status(400).json({ message: "Reply text required" });
     }
-    // check if confession exists
+
+    // check if the confession exists
     const confession = await Confession.findOne({
       _id: confessionId,
       institution: req.user.institution,
     });
 
-    // if confession does not exist, return 404
+    // if the confession does not exist, return an error
     if (!confession) {
       return res.status(404).json({ message: "Confession not found" });
     }
 
-    // check if parent comment exists
+    // check if the parent comment exists
     const parentComment = await Comment.findOne({
       _id: commentId,
       confession: confessionId,
     });
 
-    // if parent comment does not exist, return 404
+    // if the parent comment does not exist, return an error
     if (!parentComment) {
       return res.status(404).json({ message: "Comment not found" });
     }
@@ -200,11 +235,25 @@ export const replyToComment = async (req, res) => {
       parentComment: commentId,
     });
 
+    // notify parent comment owner
+    if (parentComment.user.toString() !== req.user._id.toString()) {
+      await Notification.create({
+        user: parentComment.user,
+        type: "comment",
+        title: "New reply",
+        body: "Someone replied to your comment",
+        actionUrl: `/confession/${confessionId}`,
+        relatedUser: req.user._id,
+        relatedPost: confessionId,
+      });
+    }
+
+    // return the created reply
     return res.status(201).json({
       success: true,
       data: reply,
     });
-  } catch {
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Error replying to comment",
@@ -212,26 +261,26 @@ export const replyToComment = async (req, res) => {
   }
 };
 
-// like a comment
+// like a comment (notifications)
 export const likeComment = async (req, res) => {
   try {
     const { commentId } = req.params;
     const userId = req.user._id;
 
-    // check if comment exists
+    // check if the comment exists
     const comment = await Comment.findById(commentId);
     if (!comment) {
       return res.status(404).json({ message: "Comment not found" });
     }
 
-    // check if user has already liked the comment
+    // check if the user has already liked the comment
     const existingLike = await Like.findOne({
       user: userId,
       targetId: commentId,
       targetType: "comment",
     });
 
-    // if user has already liked the comment, unlike it
+    // if the user has already liked the comment, remove the like
     if (existingLike) {
       await Like.deleteOne({ _id: existingLike._id });
       await Comment.findByIdAndUpdate(commentId, {
@@ -241,7 +290,7 @@ export const likeComment = async (req, res) => {
       return res.status(200).json({ success: true, liked: false });
     }
 
-    // like the comment
+    // create a new like
     await Like.create({
       user: userId,
       targetId: commentId,
@@ -253,8 +302,22 @@ export const likeComment = async (req, res) => {
       $inc: { likesCount: 1 },
     });
 
+    // notify comment owner (no self-notify)
+    if (comment.user.toString() !== userId.toString()) {
+      await Notification.create({
+        user: comment.user,
+        type: "like",
+        title: "Your comment got a like",
+        body: "Someone liked your comment",
+        actionUrl: `/confession/${comment.confession}`,
+        relatedUser: userId,
+        relatedPost: comment.confession,
+      });
+    }
+
+    // return the success response
     return res.status(200).json({ success: true, liked: true });
-  } catch {
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Error liking comment",
@@ -267,13 +330,13 @@ export const getCommentsForConfession = async (req, res) => {
   try {
     const { confessionId } = req.params;
 
-    // check if confession exists
+    // check if the confession exists
     const confession = await Confession.findOne({
       _id: confessionId,
       institution: req.user.institution,
     });
 
-    // if confession does not exist, return 404
+    // if the confession does not exist, return an error
     if (!confession) {
       return res.status(404).json({ message: "Confession not found" });
     }
@@ -284,8 +347,9 @@ export const getCommentsForConfession = async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
 
+    // return the comments
     return res.status(200).json({ success: true, data: comments });
-  } catch {
+  } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Error fetching comments",
