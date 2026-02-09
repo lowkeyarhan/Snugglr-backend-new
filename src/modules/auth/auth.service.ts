@@ -6,6 +6,7 @@ import { generateUniqueAnonymousUsername } from "../../core/utils/usernameGenera
 import { AppError } from "../../core/errors/AppError";
 
 export class AuthService {
+  // Register a new user
   async registerUser(email: string, password: string) {
     if (!email || !password) {
       throw new AppError("Please provide email and password", 400);
@@ -13,11 +14,13 @@ export class AuthService {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Check if email already exists
     const existingEmail = await User.exists({ email: normalizedEmail });
     if (existingEmail) {
       throw new AppError("Email already in use", 409);
     }
 
+    // Check if email domain is authorized
     const domain = normalizedEmail.split("@")[1];
     const allowedCollege = await AllowedCollege.findOne({ domain });
 
@@ -25,10 +28,12 @@ export class AuthService {
       throw new AppError("Email domain not authorized", 400);
     }
 
+    // Generate unique username
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const username = await generateUniqueAnonymousUsername(User);
 
+    // Create new user
     const newUser = await User.create({
       username,
       email: normalizedEmail,
@@ -38,6 +43,7 @@ export class AuthService {
       institution: allowedCollege._id,
     });
 
+    // Generate token
     const token = generateToken({
       userId: newUser._id,
       emailId: normalizedEmail,
@@ -45,6 +51,7 @@ export class AuthService {
       institution: allowedCollege._id,
     });
 
+    // Return user and token
     return {
       user: {
         _id: newUser._id,
@@ -58,6 +65,7 @@ export class AuthService {
     };
   }
 
+  // Login a user
   async loginUser(email?: string, phoneNumber?: string, password?: string) {
     if ((!email && !phoneNumber) || !password) {
       throw new AppError(
@@ -66,29 +74,35 @@ export class AuthService {
       );
     }
 
+    // Check if email or phone number is provided
     const orConditions: any[] = [];
     if (email?.trim()) orConditions.push({ email: email.toLowerCase().trim() });
     if (phoneNumber?.trim())
       orConditions.push({ phoneNumber: phoneNumber.trim() });
 
+    // Check if email or phone number is valid
     if (orConditions.length === 0) {
       throw new AppError("Invalid login credentials", 400);
     }
 
+    // Find user by email or phone number
     const user = await User.findOne({
       $or: orConditions,
       isActive: true,
     }).select("+password");
 
+    // Check if user exists
     if (!user) {
       throw new AppError("Invalid credentials", 401);
     }
 
+    // Check if password is valid
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new AppError("Invalid credentials", 401);
     }
 
+    // Generate token
     const token = generateToken({
       userId: user._id,
       emailId: user.email,
@@ -96,6 +110,7 @@ export class AuthService {
       institution: user.institution,
     });
 
+    // Return user and token
     return {
       user: {
         id: user._id,

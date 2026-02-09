@@ -2,6 +2,20 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = "development";
+}
+
+const nodeOptions = process.env.NODE_OPTIONS || "";
+if (nodeOptions.includes("--localstorage-file")) {
+  const hasPath = /--localstorage-file(=|\s+)\S+/.test(nodeOptions);
+  if (!hasPath) {
+    process.env.NODE_OPTIONS = nodeOptions
+      .replace(/--localstorage-file\b/g, "")
+      .trim();
+  }
+}
+
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET is missing");
 }

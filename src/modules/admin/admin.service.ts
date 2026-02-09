@@ -11,7 +11,9 @@ import Notification from "../user/models/Notification";
 import { AppError } from "../../core/errors/AppError";
 
 export class AdminService {
+  // Appoint an admin
   async appointAdmin(userId: string) {
+    // Check if user exists
     const user = await User.findById(userId);
     if (!user) throw new AppError("User not found", 404);
     if (user.role === "admin") throw new AppError("Already admin", 400);
@@ -23,6 +25,7 @@ export class AdminService {
     return { message: "Admin appointed" };
   }
 
+  // Remove an admin
   async removeAdmin(requesterId: string, userId: string) {
     if (requesterId === userId)
       throw new AppError("You cannot remove yourself", 400);
@@ -36,6 +39,7 @@ export class AdminService {
     return { message: "Admin removed" };
   }
 
+  // Get all domains
   async getAllDomains(isActive?: string) {
     const filter: any = {};
     if (isActive !== undefined) filter.isActive = isActive === "true";
@@ -46,6 +50,7 @@ export class AdminService {
     return domains;
   }
 
+  // Add a domain
   async addDomain(
     domain: string,
     institutionName: string,
@@ -69,6 +74,7 @@ export class AdminService {
     return newDomain;
   }
 
+  // Update a domain
   async updateDomain(
     id: string,
     domain: string,
@@ -89,12 +95,14 @@ export class AdminService {
     return updated;
   }
 
+  // Delete a domain
   async deleteDomain(id: string) {
     const deleted = await AllowedCollege.findByIdAndDelete(id);
     if (!deleted) throw new AppError("Domain not found", 404);
     return { message: "Domain deleted" };
   }
 
+  // Get all users
   async getAllUsers(
     page: number,
     limit: number,
@@ -114,6 +122,7 @@ export class AdminService {
       ];
     }
 
+    // Get all users
     const users = await User.find(filter)
       .select("-password")
       .populate("institution", "institutionName domain")
@@ -122,8 +131,10 @@ export class AdminService {
       .skip((page - 1) * limit)
       .lean();
 
+    // Get total users
     const totalUsers = await User.countDocuments(filter);
 
+    // Return users and pagination
     return {
       users,
       pagination: {
@@ -135,6 +146,7 @@ export class AdminService {
     };
   }
 
+  // Get a user by ID
   async getUserById(userId: string) {
     const user = await User.findById(userId)
       .select("-password")
@@ -143,51 +155,69 @@ export class AdminService {
 
     if (!user) throw new AppError("User not found", 404);
 
+    // Get user stats
     const [confessionsCount, commentsCount, matchesCount] = await Promise.all([
       Confession.countDocuments({ user: userId }),
       Comment.countDocuments({ user: userId }),
       Match.countDocuments({ $or: [{ userA: userId }, { userB: userId }] }),
     ]);
 
+    // Return user and stats
     return {
       user,
       stats: { confessionsCount, commentsCount, matchesCount },
     };
   }
 
+  // Delete a user
   async deleteUser(requesterId: string, userId: string) {
+    // Check if user exists
     const user = await User.findById(userId);
+    // Check if user is a superadmin
     if (!user) throw new AppError("User not found", 404);
     if (user.role === "superadmin")
       throw new AppError("Cannot delete superadmin", 403);
+    // Check if requester is the user
     if (requesterId === userId)
       throw new AppError("Cannot delete yourself", 400);
 
+    // Delete user confessions
     await Confession.deleteMany({ user: userId });
+    // Delete user comments
     await Comment.deleteMany({ user: userId });
+    // Delete user likes
     await Like.deleteMany({ user: userId });
     await Match.deleteMany({ $or: [{ userA: userId }, { userB: userId }] });
+    // Delete user match pool entry
     await MatchPool.deleteOne({ user: userId });
+    // Delete user notifications
     await Notification.deleteMany({ user: userId });
+    // Delete user
     await User.findByIdAndDelete(userId);
 
+    // Return success message
     return { message: "User and associated data deleted successfully" };
   }
 
+  // Update a user status
   async updateUserStatus(userId: string, isActive: boolean) {
     if (isActive === undefined) {
       throw new AppError("isActive field is required", 400);
     }
 
+    // Update user status
     const user = await User.findByIdAndUpdate(
       userId,
       { isActive },
       { new: true },
     ).select("-password");
+    // Check if user exists
     if (!user) throw new AppError("User not found", 404);
+    // Return user
     return user;
   }
 
+  // Get all chatrooms
   async getAllChatrooms(
     page: number,
     limit: number,
@@ -200,6 +230,7 @@ export class AdminService {
     if (status) filter.status = status;
     if (anonymous !== undefined) filter.anonymous = anonymous === "true";
 
+    // Get all chatrooms
     const chatrooms = await ChatRoom.find(filter)
       .populate("users", "username email")
       .populate("institute", "institutionName")
@@ -208,6 +239,7 @@ export class AdminService {
       .skip((page - 1) * limit)
       .lean();
 
+    // Get chatrooms with message count
     const chatroomsWithCount = await Promise.all(
       chatrooms.map(async (chat: any) => ({
         ...chat,
@@ -215,7 +247,9 @@ export class AdminService {
       })),
     );
 
+    // Get total chatrooms
     const totalChatrooms = await ChatRoom.countDocuments(filter);
+    // Return chatrooms and pagination
 
     return {
       chatrooms: chatroomsWithCount,
@@ -228,7 +262,9 @@ export class AdminService {
     };
   }
 
+  // Get chatroom stats
   async getChatroomStats() {
+    // Get chatroom stats
     const [total, byType, byStatus, anonymousCount, totalMessages] =
       await Promise.all([
         ChatRoom.countDocuments(),
@@ -240,22 +276,28 @@ export class AdminService {
         Message.countDocuments(),
       ]);
 
+    // Return chatroom stats
     return { total, byType, byStatus, anonymousCount, totalMessages };
   }
 
+  // Get a chatroom by ID
   async getChatroomById(chatroomId: string) {
     const chatroom = await ChatRoom.findById(chatroomId)
       .populate("users", "username email")
       .populate("institute", "institutionName")
       .lean();
 
+    // Check if chatroom exists
     if (!chatroom) throw new AppError("Chatroom not found", 404);
 
+    // Get message count
     const messageCount = await Message.countDocuments({ chatId: chatroomId });
+    // Get last message
     const lastMessage = await Message.findOne({ chatId: chatroomId })
       .sort({ createdAt: -1 })
       .lean();
 
+    // Return chatroom and stats
     return { ...chatroom, messageCount, lastMessage };
   }
 

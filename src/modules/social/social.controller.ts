@@ -1,9 +1,13 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { SocialService } from "./social.service";
 
 const socialService = new SocialService();
 
-export const createConfession = async (req: Request, res: Response) => {
+export const createConfession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { text } = req.body;
     const confession = await socialService.createConfession(
@@ -17,10 +21,16 @@ export const createConfession = async (req: Request, res: Response) => {
       success: false,
       message: error.message || "Internal server error",
     });
+  } finally {
+    next();
   }
 };
 
-export const getConfessions = async (req: Request, res: Response) => {
+export const getConfessions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -35,10 +45,16 @@ export const getConfessions = async (req: Request, res: Response) => {
       success: false,
       message: error.message || "Error fetching confessions",
     });
+  } finally {
+    next();
   }
 };
 
-export const likeConfession = async (req: Request, res: Response) => {
+export const likeConfession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { confessionId } = req.params;
     const result = await socialService.likeConfession(
@@ -46,16 +62,22 @@ export const likeConfession = async (req: Request, res: Response) => {
       req.user!._id,
       req.user!.institution,
     );
-    return res.status(200).json({ success: true, ...result });
+    res.status(200).json({ success: true, ...result });
   } catch (error: any) {
-    return res.status(error.statusCode || 500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Error liking confession",
     });
+  } finally {
+    next();
   }
 };
 
-export const commentOnConfession = async (req: Request, res: Response) => {
+export const commentOnConfession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { confessionId } = req.params;
     const { text } = req.body;
@@ -65,16 +87,22 @@ export const commentOnConfession = async (req: Request, res: Response) => {
       req.user!.institution,
       text,
     );
-    return res.status(201).json({ success: true, data: comment });
+    res.status(201).json({ success: true, data: comment });
   } catch (error: any) {
-    return res.status(error.statusCode || 500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Error adding comment",
     });
+  } finally {
+    next();
   }
 };
 
-export const replyToComment = async (req: Request, res: Response) => {
+export const replyToComment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { confessionId, commentId } = req.params;
     const { text } = req.body;
@@ -85,40 +113,54 @@ export const replyToComment = async (req: Request, res: Response) => {
       req.user!.institution,
       text,
     );
-    return res.status(201).json({ success: true, data: reply });
+    res.status(201).json({ success: true, data: reply });
   } catch (error: any) {
-    return res.status(error.statusCode || 500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message,
     });
+  } finally {
+    next();
   }
 };
 
-export const likeComment = async (req: Request, res: Response) => {
+export const likeComment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { commentId } = req.params;
     const result = await socialService.likeComment(commentId, req.user!._id);
-    return res.status(200).json({ success: true, ...result });
+    res.status(200).json({ success: true, ...result });
   } catch (error: any) {
-    return res.status(error.statusCode || 500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Error liking comment",
     });
+  } finally {
+    next();
   }
 };
 
-export const getCommentsForConfession = async (req: Request, res: Response) => {
+export const getCommentsForConfession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { confessionId } = req.params;
     const comments = await socialService.getCommentsForConfession(
       confessionId,
       req.user!.institution,
     );
-    return res.status(200).json({ success: true, data: comments });
+    res.status(200).json({ success: true, data: comments });
   } catch (error: any) {
-    return res.status(error.statusCode || 500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Error fetching comments",
     });
+  } finally {
+    next();
   }
 };

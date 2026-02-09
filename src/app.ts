@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { config } from "./config/env";
 import { errorMiddleware } from "./core/middleware/error.middleware";
+import { setupSwaggerResponses } from "./config/swagger";
 
 import authRoutes from "./modules/auth/auth.routes";
 import userRoutes from "./modules/user/user.routes";
@@ -11,6 +12,8 @@ import socialRoutes from "./modules/social/social.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 
 const app = express();
+
+setupSwaggerResponses(app);
 
 app.use(
   cors({
